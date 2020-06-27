@@ -1,5 +1,5 @@
 [package]
-name = "bf_rust"
+name = "bf-rust"
 version = "0.1.0"
 authors = ["sankaku <sankaku.git@gmail.com>"]
 edition = "2018"
