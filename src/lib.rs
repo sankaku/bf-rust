@@ -4,6 +4,13 @@ pub struct State {
     tape: Vec<u32>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+enum NextAction {
+    GoForward,
+    JumpBackward,
+    JumpForward,
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Command {
     IncrPtr,
@@ -12,8 +19,8 @@ pub enum Command {
     DecrVal,
     Output,
     // GetChar,
-    // IterStart,
-    // IterEnd,
+    IterStart,
+    IterEnd,
 }
 
 impl Command {
@@ -24,47 +31,102 @@ impl Command {
             '+' => Some(Command::IncrVal),
             '-' => Some(Command::DecrVal),
             '.' => Some(Command::Output),
+            // ',' => Some(Command::GetChar),
+            '[' => Some(Command::IterStart),
+            ']' => Some(Command::IterEnd),
             _ => None,
         }
     }
-    fn call(&self, state: &State) -> State {
+
+    pub fn is_iter_start(&self) -> bool {
+        *self == Command::IterStart
+    }
+
+    pub fn is_iter_end(&self) -> bool {
+        *self == Command::IterEnd
+    }
+
+    fn call(&self, state: &State) -> (State, NextAction) {
         let pos = &state.pos;
         let tape = &state.tape;
 
+        // TODO return just `state` when input equals output
         match &self {
-            Command::IncrPtr => State {
-                pos: *pos + 1,
-                tape: tape.to_vec(),
-            },
-            Command::DecrPtr => State {
-                pos: *pos - 1,
-                tape: tape.to_vec(),
-            },
-            Command::IncrVal => State {
-                pos: *pos,
-                tape: {
-                    let mut v = tape.to_vec();
-                    v[*pos] += 1;
-                    v
+            Command::IncrPtr => (
+                State {
+                    pos: *pos + 1,
+                    tape: tape.to_vec(),
                 },
-            },
-            Command::DecrVal => State {
-                pos: *pos,
-                tape: {
-                    let mut v = tape.to_vec();
-                    v[*pos] -= 1;
-                    v
+                NextAction::GoForward,
+            ),
+            Command::DecrPtr => (
+                State {
+                    pos: *pos - 1,
+                    tape: tape.to_vec(),
                 },
-            },
-            Command::Output => {
-                println!("{:?}", tape[*pos]);
+                NextAction::GoForward,
+            ),
+            Command::IncrVal => (
                 State {
                     pos: *pos,
-                    tape: tape.to_vec(),
-                }
-            } // Command::GetChar => { },
-              // Command::IterStart => (),// TODO
-              // Command::IterEnd => (),// TODO
+                    tape: {
+                        let mut v = tape.to_vec();
+                        v[*pos] += 1;
+                        v
+                    },
+                },
+                NextAction::GoForward,
+            ),
+            Command::DecrVal => (
+                State {
+                    pos: *pos,
+                    tape: {
+                        let mut v = tape.to_vec();
+                        v[*pos] -= 1;
+                        v
+                    },
+                },
+                NextAction::GoForward,
+            ),
+            Command::Output => {
+                println!("{:?}", tape[*pos]);
+                (
+                    State {
+                        pos: *pos,
+                        tape: tape.to_vec(),
+                    },
+                    NextAction::GoForward,
+                )
+            }
+            // Command::GetChar => { },
+            Command::IterStart => {
+                let next_action = if tape[*pos] == 0 {
+                    NextAction::JumpForward
+                } else {
+                    NextAction::GoForward
+                };
+                (
+                    State {
+                        pos: *pos,
+                        tape: tape.to_vec(),
+                    },
+                    next_action,
+                )
+            }
+            Command::IterEnd => {
+                let next_action = if tape[*pos] == 0 {
+                    NextAction::GoForward
+                } else {
+                    NextAction::JumpBackward
+                };
+                (
+                    State {
+                        pos: *pos,
+                        tape: tape.to_vec(),
+                    },
+                    next_action,
+                )
+            }
         }
     }
 }
@@ -80,10 +142,13 @@ mod tests {
             tape: vec![0],
         };
         let actual = command.call(&state);
-        let expected = State {
-            pos: 1,
-            tape: vec![0],
-        };
+        let expected = (
+            State {
+                pos: 1,
+                tape: vec![0],
+            },
+            NextAction::GoForward,
+        );
         assert_eq!(actual, expected);
     }
 
@@ -95,10 +160,13 @@ mod tests {
             tape: vec![0],
         };
         let actual = command.call(&state);
-        let expected = State {
-            pos: 0,
-            tape: vec![0],
-        };
+        let expected = (
+            State {
+                pos: 0,
+                tape: vec![0],
+            },
+            NextAction::GoForward,
+        );
         assert_eq!(actual, expected);
     }
 
@@ -110,10 +178,13 @@ mod tests {
             tape: vec![0],
         };
         let actual = command.call(&state);
-        let expected = State {
-            pos: 0,
-            tape: vec![1],
-        };
+        let expected = (
+            State {
+                pos: 0,
+                tape: vec![1],
+            },
+            NextAction::GoForward,
+        );
         assert_eq!(actual, expected);
     }
 
@@ -125,11 +196,38 @@ mod tests {
             tape: vec![1],
         };
         let actual = command.call(&state);
-        let expected = State {
-            pos: 0,
-            tape: vec![0],
-        };
+        let expected = (
+            State {
+                pos: 0,
+                tape: vec![0],
+            },
+            NextAction::GoForward,
+        );
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn is_iter_start_must_work_for_iter_start() {
+        let command = Command::IterStart;
+        let actual = command.is_iter_start();
+        let expected = true;
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn is_iter_start_must_work_for_iter_end() {
+        let command = Command::IterEnd;
+        let actual = command.is_iter_start();
+        let expected = false;
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn is_iter_end_must_work_for_iter_end() {
+        let command = Command::IterEnd;
+        let actual = command.is_iter_end();
+        let expected = true;
+        assert_eq!(actual, expected)
     }
 }
 
@@ -141,17 +239,39 @@ impl Interpreter {
             tape: vec![0; tape_length],
         }];
         let commands = Self::convert_str_to_command(&s);
-        for command in commands {
+
+        let mut i = 0;
+        while i < commands.len() {
+            let command = &commands[i];
             let latest_state = states
                 .last()
                 .expect("Can't find the latest state. Something must be wrong!");
-            let new_state = command.call(latest_state);
+            let (new_state, next_action) = command.call(latest_state);
+            match next_action {
+                NextAction::GoForward => {
+                    i += 1;
+                }
+                NextAction::JumpBackward => {
+                    while !&commands[i].is_iter_start() {
+                        i -= 1;
+                    }
+                    i += 1;
+                }
+                NextAction::JumpForward => {
+                    while !&commands[i].is_iter_end() {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+            }
             states.push(new_state);
         }
+
         states
     }
 
     fn convert_str_to_command(s: &str) -> Vec<Command> {
+        // TODO use flatten?
         s.chars()
             .fold(Vec::new(), |mut acc, c| match Command::char_to_command(c) {
                 Some(command) => {
@@ -185,6 +305,47 @@ mod tests_interpreter {
         assert_eq!(actual, expected)
     }
 
+    #[test]
+    fn interpret_must_work_for_loop() {
+        let s = "++[-]";
+        let tape_length = 1;
+        let actual = Interpreter::interpret(s, tape_length);
+        let expected = vec![
+            State {
+                pos: 0,
+                tape: vec![0],
+            },
+            State {
+                pos: 0,
+                tape: vec![1],
+            },
+            State {
+                pos: 0,
+                tape: vec![2],
+            },
+            State {
+                pos: 0,
+                tape: vec![2],
+            },
+            State {
+                pos: 0,
+                tape: vec![1],
+            },
+            State {
+                pos: 0,
+                tape: vec![1],
+            },
+            State {
+                pos: 0,
+                tape: vec![0],
+            },
+            State {
+                pos: 0,
+                tape: vec![0],
+            },
+        ];
+        assert_eq!(actual, expected)
+    }
     #[test]
     fn convert_str_to_command_must_work() {
         let input = ">< and meaningless string";
