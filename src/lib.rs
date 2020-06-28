@@ -1,4 +1,6 @@
 use std::char;
+use std::io::{stdin, Read};
+use std::io::{stdout, Write}; // To flush in GetChar
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct State {
@@ -20,7 +22,7 @@ pub enum Command {
     IncrVal,
     DecrVal,
     Output,
-    // GetChar,
+    GetChar,
     IterStart,
     IterEnd,
 }
@@ -33,7 +35,7 @@ impl Command {
             '+' => Some(Command::IncrVal),
             '-' => Some(Command::DecrVal),
             '.' => Some(Command::Output),
-            // ',' => Some(Command::GetChar),
+            ',' => Some(Command::GetChar),
             '[' => Some(Command::IterStart),
             ']' => Some(Command::IterEnd),
             _ => None,
@@ -100,7 +102,23 @@ impl Command {
                     NextAction::GoForward,
                 )
             }
-            // Command::GetChar => { },
+            Command::GetChar => {
+                print!("INPUT: ");
+                stdout().flush().unwrap();
+                let mut buf: Vec<u8> = vec![0];
+                stdin().lock().read(&mut buf).expect("Input error");
+                (
+                    State {
+                        pos: *pos,
+                        tape: {
+                            let mut v = tape.to_vec();
+                            v[*pos] = *buf.first().unwrap();
+                            v
+                        },
+                    },
+                    NextAction::GoForward,
+                )
+            }
             Command::IterStart => {
                 let next_action = if tape[*pos] == 0 {
                     NextAction::JumpForward
