@@ -7,3 +7,6 @@ $ cargo run example/helloworld.bf
 ```
 
 See [Brainfuck - Wikipedia](https://en.wikipedia.org/wiki/Brainfuck#Hello_World!).
+
+## License
+MIT License
