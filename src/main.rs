@@ -1,4 +1,6 @@
-use bf_rust::Interpreter;
+extern crate bf_rust;
+
+use bf_rust::modules::interpreter::Interpreter;
 use std::env;
 use std::fs;
 
