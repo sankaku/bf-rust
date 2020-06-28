@@ -1,7 +1,9 @@
+use std::char;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct State {
     pos: usize,
-    tape: Vec<u32>,
+    tape: Vec<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -89,7 +91,7 @@ impl Command {
                 NextAction::GoForward,
             ),
             Command::Output => {
-                println!("{:?}", tape[*pos]);
+                print!("{}", tape[*pos] as char);
                 (
                     State {
                         pos: *pos,
@@ -252,18 +254,13 @@ impl Interpreter {
                     i += 1;
                 }
                 NextAction::JumpBackward => {
-                    while !&commands[i].is_iter_start() {
-                        i -= 1;
-                    }
-                    i += 1;
+                    i = Self::find_corresponding_iter_start(i, &commands) + 1;
                 }
                 NextAction::JumpForward => {
-                    while !&commands[i].is_iter_end() {
-                        i += 1;
-                    }
-                    i += 1;
+                    i = Self::find_corresponding_iter_end(i, &commands) + 1;
                 }
             }
+            // println!("{:?}", new_state);
             states.push(new_state);
         }
 
@@ -280,6 +277,38 @@ impl Interpreter {
                 }
                 None => acc,
             })
+    }
+
+    fn find_corresponding_iter_start(i: usize, commands: &Vec<Command>) -> usize {
+        let mut j = i - 1;
+        let mut num_iter_start = 0;
+        let mut num_iter_end = 1;
+        while num_iter_start != num_iter_end {
+            let tmp_command = &commands[j];
+            if tmp_command.is_iter_start() {
+                num_iter_start += 1;
+            } else if tmp_command.is_iter_end() {
+                num_iter_end += 1;
+            }
+            j -= 1;
+        }
+        j
+    }
+
+    fn find_corresponding_iter_end(i: usize, commands: &Vec<Command>) -> usize {
+        let mut j = i + 1;
+        let mut num_iter_start = 1;
+        let mut num_iter_end = 0;
+        while num_iter_start != num_iter_end {
+            let tmp_command = &commands[j];
+            if tmp_command.is_iter_start() {
+                num_iter_start += 1;
+            } else if tmp_command.is_iter_end() {
+                num_iter_end += 1;
+            }
+            j += 1;
+        }
+        j
     }
 }
 
@@ -337,6 +366,10 @@ mod tests_interpreter {
             },
             State {
                 pos: 0,
+                tape: vec![1],
+            },
+            State {
+                pos: 0,
                 tape: vec![0],
             },
             State {
@@ -346,6 +379,7 @@ mod tests_interpreter {
         ];
         assert_eq!(actual, expected)
     }
+
     #[test]
     fn convert_str_to_command_must_work() {
         let input = ">< and meaningless string";
